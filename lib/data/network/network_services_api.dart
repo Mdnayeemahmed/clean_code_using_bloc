@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:bloc_clean_coding/data/exceptions/app_exceptions.dart';
@@ -29,23 +30,40 @@ class NetworkServicesApi implements BaseApiServices {
   Future<dynamic> postApi(String url, var data) async {
     dynamic jsonResponse;
     try {
-      final response = await http
-          .post(Uri.parse(url), body: data)
-          .timeout(Duration(seconds: 50));
-      jsonResponse = returnResponse(response);
+      print("Sending POST request to: $url with data: $data");
 
-      if (response.statusCode == 200) {}
+      final response = await http
+          .post(
+        Uri.parse(url),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(data),
+      )
+          .timeout(const Duration(seconds: 50));
+
+      print("Response status code: ${response.statusCode}");
+
+      jsonResponse = returnResponse(response);
     } on SocketException {
-      throw NoInternetException('');
+      print("No Internet connection.");
+      throw NoInternetException('No Internet Connection');
     } on TimeoutException {
-      throw FetchDataException('Time Out Try Again');
+      print("Request timed out.");
+      throw FetchDataException('Request Timed Out. Try Again.');
+    } on FormatException {
+      print("Bad response format.");
+      throw FetchDataException('Bad Response Format.');
+    } catch (e) {
+      print("Unexpected error: $e");
+      throw FetchDataException('Unexpected Error Occurred: $e');
     }
 
     return jsonResponse;
   }
 
+
+
   dynamic returnResponse(http.Response response) {
-    switch (response) {
+    switch (response.statusCode) {
       case 200:
         dynamic jsonResponse = jsonDecode(response.body);
         return jsonResponse;
